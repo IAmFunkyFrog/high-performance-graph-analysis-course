@@ -1,3 +1,4 @@
+import pygraphblas
 from pygraphblas import Matrix, types, Vector
 
 from .graph import *
@@ -16,9 +17,8 @@ def bfs(graph: Graph, start_node_order: int) -> list[int]:
     if len(graph.nodes) == 0:
         return []
 
-    result = [-1 for i in range(len(graph.nodes))]
     if start_node_order is None:
-        return result
+        return [-1] * len(graph.nodes)
 
     adj_matrix = Matrix.sparse(types.BOOL, len(graph.nodes), len(graph.nodes))
     for node in graph.nodes:
@@ -26,24 +26,36 @@ def bfs(graph: Graph, start_node_order: int) -> list[int]:
         for connected in connected_nodes:
             adj_matrix[graph.order(node), graph.order(connected)] = True
 
-    result[start_node_order] = 0
     front = Vector.sparse(types.BOOL, len(graph.nodes))
     front[start_node_order] = True
+    return bfs_matrix(adj_matrix, front)
 
-    last_nnz = len(front.nonzero())
+
+def bfs_matrix(adj_matrix: Matrix, front: Vector) -> list[int]:
+    """
+    Make bfs on given adjacency matrix with given front
+
+    @param adj_matrix: graph to make bfs
+    @param front: front from which start bfs
+    @return: list, which contains info (number of hopes need to reach) about reachability to each node from given
+    """
+    result = Vector.sparse(types.INT32, front.size, fill=0, mask=front)
+
     step = 0
     while True:
         step += 1
-        front = front + front @ adj_matrix
+        front = front.vxm(
+            adj_matrix,
+            mask=result,
+            desc=pygraphblas.descriptor.S & pygraphblas.descriptor.C,
+        )
 
-        cur_nnz = len(front.nonzero())
-        if last_nnz == cur_nnz:
+        if front.nvals == 0:
             break
-        else:
-            last_nnz = cur_nnz
 
-        for (node_order, _) in front.nonzero():
-            if result[node_order] == -1:
-                result[node_order] = step
+        result[front] = step
 
-    return result
+    result.assign_scalar(
+        -1, mask=result, desc=pygraphblas.descriptor.S & pygraphblas.descriptor.C
+    )
+    return list(result.vals)
