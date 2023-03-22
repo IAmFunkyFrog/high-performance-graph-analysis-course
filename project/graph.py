@@ -1,5 +1,7 @@
 __all__ = ["convert_to_graph", "Node", "Edge", "Graph"]
 
+from pygraphblas import Matrix, types
+
 
 class Node:
     def __init__(self, value):
@@ -62,6 +64,14 @@ class Graph:
             if self._nodes[i] == node:
                 return i
         raise ValueError("Graph does not contain given node")
+
+    def as_adjacency_matrix(self) -> Matrix:
+        adj_matrix = Matrix.sparse(types.BOOL, len(self.nodes), len(self.nodes))
+        for node in self.nodes:
+            connected_nodes = self.get_connected_nodes(node)
+            for connected in connected_nodes:
+                adj_matrix[self.order(node), self.order(connected)] = True
+        return adj_matrix
 
 
 def convert_to_graph(nodes: list[any], edges: list[tuple[any, any]]) -> Graph:
