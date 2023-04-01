@@ -1,4 +1,4 @@
-__all__ = ["convert_to_graph", "Node", "Edge", "Graph"]
+__all__ = ["convert_to_graph", "convert_to_undirected_graph", "Node", "Edge", "Graph"]
 
 from pygraphblas import Matrix, types
 
@@ -65,8 +65,8 @@ class Graph:
                 return i
         raise ValueError("Graph does not contain given node")
 
-    def as_adjacency_matrix(self) -> Matrix:
-        adj_matrix = Matrix.sparse(types.BOOL, len(self.nodes), len(self.nodes))
+    def as_adjacency_matrix(self, matrix_type=types.BOOL) -> Matrix:
+        adj_matrix = Matrix.sparse(matrix_type, len(self.nodes), len(self.nodes))
         for node in self.nodes:
             connected_nodes = self.get_connected_nodes(node)
             for connected in connected_nodes:
@@ -97,3 +97,21 @@ def convert_to_graph(nodes: list[any], edges: list[tuple[any, any]]) -> Graph:
         boxed_edges.append(Edge((node1, node2)))
 
     return Graph(boxed_nodes, boxed_edges)
+
+
+def convert_to_undirected_graph(
+    nodes: list[any], edges: list[tuple[any, any]]
+) -> Graph:
+    """
+    Converts given list of nodes and edges to undirected Graph
+
+    @param nodes: list of any objects
+    @param edges: list of tuples, which contain objects from nodes list
+    @return: graph as Graph class object
+    """
+    new_edges = set()
+    for edge in edges:
+        new_edges.add((edge[1], edge[0]))
+        new_edges.add((edge[0], edge[1]))
+
+    return convert_to_graph(nodes, list(new_edges))
