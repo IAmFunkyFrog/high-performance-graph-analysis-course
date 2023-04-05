@@ -59,5 +59,5 @@ def test_bellman_ford(name: str, graph: Graph, start_nodes: list[int], expected:
 def test_floyd_warshall(name: str, graph: Graph, start_nodes: list[int], expected: list[tuple[int, list[int]]]):
     actual = floyd_warshall(graph)
     for (node, actual_answer) in expected:
-        expected_answer = expected[node]
+        expected_answer = actual[node]
         assert actual_answer == expected_answer[1]
