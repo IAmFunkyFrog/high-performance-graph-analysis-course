@@ -4,7 +4,7 @@ import pytest
 
 from project import Graph
 from project.graph import convert_to_weighted_graph
-from project.shortest_path import bellman_ford_multi_source, floyd_warshall
+from project.shortest_path import bellman_ford_multi_source, floyd_warshall, dijkstra
 
 testdata = [
     ("Linear graph", convert_to_weighted_graph([0, 1, 2], [(0, 1.0, 1), (1, 1.0, 2)]), [0], [(0, [0.0, 1.0, 2.0])]),
@@ -58,6 +58,14 @@ def test_bellman_ford(name: str, graph: Graph, start_nodes: list[int], expected:
 @pytest.mark.parametrize("name, graph, start_nodes, expected", testdata)
 def test_floyd_warshall(name: str, graph: Graph, start_nodes: list[int], expected: list[tuple[int, list[int]]]):
     actual = floyd_warshall(graph)
+    for (node, actual_answer) in expected:
+        expected_answer = actual[node]
+        assert actual_answer == expected_answer[1]
+
+
+@pytest.mark.parametrize("name, graph, start_nodes, expected", testdata)
+def test_dijkstra(name: str, graph: Graph, start_nodes: list[int], expected: list[tuple[int, list[int]]]):
+    actual = dijkstra(graph, start_nodes)
     for (node, actual_answer) in expected:
         expected_answer = actual[node]
         assert actual_answer == expected_answer[1]

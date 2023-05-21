@@ -7,20 +7,27 @@ __all__ = [
     "convert_to_weighted_graph",
 ]
 
+import networkx
 from pygraphblas import Matrix, types
 
 
 class Node:
-    def __init__(self, value):
+    def __init__(self, value, order=-1):
         self._value = value
+        self._order = order
 
     def __eq__(self, other):
-        if not isinstance(other, Node):
-            return self._value == other
+        if self._order >= 0 and other._order >= 0:
+            return self._order == other._order
         return self._value == other._value
 
     def __hash__(self):
+        if self._order >= 0:
+            return self._order
         return self._value.__hash__()
+
+    def order(self):
+        return self._order
 
 
 class Edge:
@@ -29,8 +36,6 @@ class Edge:
         self._weight = weight
 
     def __eq__(self, other):
-        if not isinstance(other, Edge):
-            return False
         return self._nodes == other._nodes
 
     def inverted(self):
@@ -44,47 +49,78 @@ class Edge:
     def weight(self):
         return self._weight
 
+    def __hash__(self):
+        return self._nodes[0].__hash__() ^ self._nodes[1].__hash__()
+
 
 class Graph:
     def __init__(self, nodes: list[Node], edges: list[Edge]):
         self._nodes = nodes
-        self._edges = edges
+        self._orders = dict()
+        self._adj = dict()
+        self._adj_rev = dict()
+        for i in range(len(nodes)):
+            self._adj[nodes[i]] = list()
+            self._adj_rev[nodes[i]] = list()
+            self._orders[nodes[i]] = i
+        for e in edges:
+            self._adj[e.nodes[0]].append(e)
+            self._adj_rev[e.nodes[1]].append(e)
+
+    def add_edge(self, edge: Edge):
+        if edge not in self._adj[edge.nodes[0]]:
+            self._adj[edge.nodes[0]].append(edge)
+            self._adj_rev[edge.nodes[1]].append(edge)
+        return
+
+    def remove_edge(self, edge: Edge):
+        if edge in self._adj[edge.nodes[0]]:
+            self._adj[edge.nodes[0]].remove(edge)
+            self._adj_rev[edge.nodes[1]].remove(edge)
+        return
 
     @property
     def nodes(self):
         return self._nodes
 
-    def get_connected_nodes(self, node_from: any) -> set[Node]:
+    @property
+    def edges(self):
+        result = []
+        for node in self._nodes:
+            result += self._adj[node]
+        return result
+
+    def get_connected_edges(self, node_from: any, successors: bool = True):
         """
         Get list of nodes which are reachable from given node
 
+        @param successors: if true, return successors of given node, else return predecessors
         @param node_from: node from graph
         @return: set of nodes which are reachable and adjacent from given node
         """
-        result = set()
-        for edge in self._edges:
-            nodes = edge.nodes
-            if nodes[0] == node_from:
-                result.add(nodes[1])
-        return result
+        if successors:
+            for edge in self._adj[node_from]:
+                yield edge
+        else:
+            for edge in self._adj_rev[node_from]:
+                yield edge
 
-    def order(self, node: any) -> int:
+    def order(self, node: Node) -> int:
         """
         Get position of node in nodes list inside graph
 
         @param node: node form graph
         @return: index of node
         """
-        for i in range(0, len(self._nodes)):
-            if self._nodes[i] == node:
-                return i
-        raise ValueError("Graph does not contain given node")
+        if node.order() >= 0:
+            return node.order()
+        return self._orders[node]
 
     def as_adjacency_matrix(
         self, matrix_type=types.BOOL, zero_diag: bool = False
     ) -> Matrix:
         adj_matrix = Matrix.sparse(matrix_type, len(self.nodes), len(self.nodes))
-        for edge in self._edges:
+        for edge in self.edges:
             node, connected = edge.nodes
             if matrix_type == types.BOOL:
                 adj_matrix[self.order(node), self.order(connected)] = True
@@ -157,3 +193,22 @@ def convert_to_weighted_graph(nodes: list[any], edges: list[tuple[any, float, an
         weights.append(edge[1])
 
     return convert_to_graph(nodes, list(new_edges), weights)
+
+
+def convert_from_networkx_graph(graph: networkx.DiGraph) -> Graph:
+    boxed_nodes = []
+    boxed_edges = []
+
+    i = 0
+    orders = dict()
+    for node in graph.nodes:
+        boxed_nodes.append(Node(node, i))
+        orders[node] = i
+        i += 1
+
+    for node_from, node_to in graph.edges:
+        boxed_edges.append(
+            Edge((Node(node_from, orders[node_from]), Node(node_to, orders[node_from])))
+        )
+
+    return Graph(boxed_nodes, boxed_edges)

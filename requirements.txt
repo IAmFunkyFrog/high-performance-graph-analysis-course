@@ -1,5 +1,8 @@
-black
+black==22.3.0
+click==8.0.2
 pre-commit
 pygraphblas
 pytest
 scipy
+networkx
+seaborn
