@@ -4,3 +4,5 @@ pre-commit
 pygraphblas
 pytest
 scipy
+networkx
+seaborn
